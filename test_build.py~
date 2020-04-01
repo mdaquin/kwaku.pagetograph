@@ -1,5 +1,9 @@
+import sys
+sys.path.insert(1, '/home/mdaquin/code/ingraph/')
 import kwaku.pagetograph as ptg
-import ingraph.client as ig
+from ingraph.ingraph import InGraph
+
+
 
 config = {
     "seeds": ["https://www.insight-centre.org/research-staff"],
@@ -53,11 +57,15 @@ config = {
     }
 
 graphid = "test_ptg_graph"
-es_url = "http://127.0.0.1:9200"
+es_url = "http://127.0.0.1:9200/"
+
+graph = InGraph(graphid, es_url)
+
+print(graph.search())
 
 # create the graph
-ig.createGraph(graphid, es_endpoint=es_url, directed=True, labelled=True, weighted=False, multi=True)
+graph.create_graph(directed=True, labelled=True, weighted=False, multi=True)
 
-print (ptg.crawl(config, graphid))
+print (ptg.crawl(config, graph))
 
 

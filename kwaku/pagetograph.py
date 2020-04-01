@@ -1,35 +1,46 @@
 from selenium import webdriver
+from selenium.webdriver.firefox.options import Options
+import selenium.common.exceptions
 from bs4 import BeautifulSoup
-import ingraph.client as ig
 import urlparse
 
-def crawl(config, graphid):
+def crawl(config, graph, turl=None):
     if not validateConfig(config):
         return False
     to_crawl = []
     crawled = []
     to_crawl.extend(config["seeds"])
     while len(to_crawl) != 0:
-        url = to_crawl.pop()
+        url = ""
+        if turl!=None:
+            url  = turl
+            turl = None
+        else:
+            url = to_crawl.pop()
         crawled.append(url)
-        # driver = webdriver.Chrome("/usr/lib/chromium-browser/chromedriver")
-        driver = webdriver.Firefox()
+        options = Options()
+        options.headless = True
+        driver = webdriver.Firefox(options=options)
         print("=== getting "+url+"====")
-        driver.get(url) # how to check this went OK?
-        srce = driver.page_source
-        driver.close()
-        soup = BeautifulSoup(srce, features="lxml")
-        for l in config["follow_links"]:
-            nurls = extractURLs(soup, l, url)
-            for u in nurls:
-                if u not in to_crawl and u not in crawled:
-                    to_crawl.append(u)
-        for n in config["nodes"]:
-            process(graphid, soup, n)
+        try: 
+            driver.get(url) # how to check this went OK?
+            srce = driver.page_source
+            driver.close()
+            soup = BeautifulSoup(srce, features="lxml")
+            for l in config["follow_links"]:
+                nurls = extractURLs(soup, l, url)
+                for u in nurls:
+                    if u not in to_crawl and u not in crawled:
+                        to_crawl.append(u)
+            for n in config["nodes"]:
+                process(graph, soup, n)
+        except selenium.common.exceptions.WebDriverException:
+            print("error getting this url")
     return True
 
-def process(graphid, soup, node):
+def process(graph, soup, node):
     els = soup.select(node["selector"])
+    print("with "+node["selector"]+" got "+str(len(els))+" results")
     for el in els:
         nid = el.select(node["ID"])[0].text.strip()
         obj = {"label": nid, "outedges": []}
@@ -46,7 +57,8 @@ def process(graphid, soup, node):
             s = el.select(rel["selector"])
             for i in s:
                 obj["outedges"].append((rel["relation"], i.text.strip()))
-        ig.updateNode(graphid, nid, obj)
+        print("   adding node "+nid)
+        graph.update_node(nid, obj)
 
 def extractURLs(soup, link, base):
     es = soup.select(link["selector"])
